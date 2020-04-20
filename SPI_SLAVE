@@ -1,7 +1,4 @@
-#define F_CPU 8000000
-
 #include<avr/io.h>
-#include<util/delay.h>
 void USART0_INIT(void){
 	/*baud rate*/
 	UBRR0H = 0x00;
@@ -21,28 +18,23 @@ char USART0_REC(void){
 	while(!(UCSR0A & 0x80));
 	return UDR0;
 }
+
 void SPI_SLAVE_INIT(void){
 	DDRB = 0x08;
 	SPCR = 0x40;
 }
-uint8_t SLAVE_REC(void){
-	while(!(SPCR & 0x80));
+char SLAVE_REC(void){
+	while(!(SPSR & 0x80));
 	return SPDR;
 }
 int main(void){
 	SPI_SLAVE_INIT();
 	USART0_INIT();
-	_delay_ms(10);
-	uint8_t a = SLAVE_REC();
+	char a = SLAVE_REC();
 	DDRF = 0xFF;
-	while(1){
-		_delay_ms(100);
-		PORTF = a;
-		_delay_ms(100);
-		PORTF = 0x00;
-		USART0_TRANS(a);
-	}
-	return 0;
+	PORTF = a;
+	USART0_TRANS(a);
+	
 }
 
 
