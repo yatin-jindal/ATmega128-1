@@ -1,0 +1,43 @@
+#define F_CPU 8000000
+#include <avr/io.h>
+#include <util/delay.h>
+void ADC_Init(void){
+	/*enabling adc and setting prescaler to 16*/
+	ADCSRA |= (1<<ADEN)|(1<<ADPS2)|(1<<ADFR);
+	/* selecting ADC0 and ADC1 for positive and negative differential channels , left adjusting result*/
+	ADMUX |= (1<<MUX4)|(1<<ADLAR);
+}
+void USART0_INIT(void){
+	/*baud rate*/
+	UBRR1H = 0x00;
+	UBRR1L = 0x33;
+	/*setting frame format*/
+	UCSR1C = 0x06;
+	/*enabling receiver and transmitter*/
+	UCSR1B = 0x18;
+}
+
+void USART0_TRANS(uint8_t data){
+	/* wait for empty transmit buffer*/
+	while(!(UCSR1A & 0x20));
+	UDR1 = data;
+}
+
+
+
+int main(void){
+	
+	ADC_Init();
+	DDRE = 0xFF;
+	/* starting conversion*/
+	ADCSRA |= (1<<ADSC);
+	while(1){
+		/* wait for conversion to complete*/
+		while(!(ADCSRA & (1<<ADIF)));
+		PORTE = ADCH;
+		_delay_ms(100);
+		PORTE = 0x00;
+		_delay_ms(100);
+		
+	}
+}
