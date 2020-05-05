@@ -1,0 +1,16 @@
+#include <avr/io.h>
+#include <util/delay.h>
+
+int main()
+{
+	_delay_ms(2000);
+	DDRB=0xFF;         
+	TCNT0=0x00;
+	/* setting clock, setting OC0 on compare match*/
+	TCCR0 = (1<<CS00)|(1<<CS02)|(1<<CS01)|(1<<COM0)|(1<<COM1);
+	OCR0 = 0xF0;
+	/*wait for match */
+	while ((TIFR & 0x02) == 1);
+		
+	}
+
