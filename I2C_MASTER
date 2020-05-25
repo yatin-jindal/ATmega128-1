@@ -1,0 +1,38 @@
+#F_CPU 8000000
+#include <avr/io.h>
+#define BITRATE(TWSR) = ((F_CPU/SCL_CLK)-16)/(2*pow(4, (TWSR&((1<<TWPS1)|(1<<TWPS0)))
+
+void I2C_INIT(){
+  TWSR |= (1<<TWPS1)|(1<<TWPS0);
+  TWBR = BITRATE(TWSR);
+  TWCR |= (1<<TWEN);
+  TWAR = 0xF0;
+  }
+  
+void I2C_START(){
+  TWCR | = (1<<TWSTA)|(1<<TWINT);
+  while(!(TWCR&(1<<TWINT)));
+  TWDR = 0xA0;
+  TWCR |= (1<<TWINT);
+  while(!(TWCR&(1<<TWINT)));
+  }
+  
+void I2C_WRITE(char data){
+  TWDR = data;
+  TWCR |= (1<<TWINT);
+  while(!(TWCR&(1<<TWINT)));
+  }
+  
+void I2C_STOP(){
+  TWCR |= (1<<TWSTO)|(1<<TWINT)
+  }
+  
+int main(void){
+  I2C_INIT();
+  I2C_START();
+  I2C_WRITE('A');
+  I2C_STOP();
+  
+  return 0;
+  }
+
