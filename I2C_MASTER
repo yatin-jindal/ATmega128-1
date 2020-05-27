@@ -3,17 +3,17 @@
 
 
 void I2C_INIT(){
-	TWSR |= (1<<TWPS1)|(1<<TWPS0);
-	TWBR = 0x20;
-	TWCR |= (1<<TWEN);
-	TWAR = 0xF0;
+	TWSR |= (1<<TWPS1)|(1<<TWPS0);      //setting prescaler bits
+	TWBR = 0x20;       //bitrate
+	TWCR |= (1<<TWEN);     //enabling twi
+	TWAR = 0xF0;       //address of the device
 }
 
 void I2C_START(){
-	TWCR |= (1<<TWSTA)|(1<<TWINT)|(1<<TWEN);
-	while(!(TWCR&(1<<TWINT)));
-	TWDR = 0xA0;
-	TWCR |= (1<<TWINT)|(1<<TWEN);
+	TWCR |= (1<<TWSTA)|(1<<TWINT)|(1<<TWEN);        //sending start condition
+	while(!(TWCR&(1<<TWINT)));       
+	TWDR = 0xA0;        //sending SLA_W
+	TWCR |= (1<<TWINT)|(1<<TWEN);       
 	while(!(TWCR&(1<<TWINT)));
 }
 
@@ -24,7 +24,7 @@ void I2C_WRITE(char data){
 }
 
 void I2C_STOP(){
-	TWCR |= (1<<TWSTO)|(1<<TWINT)|(1<<TWEN);
+	TWCR |= (1<<TWSTO)|(1<<TWINT)|(1<<TWEN);         //stop condition
 }
 
 int main(void){
