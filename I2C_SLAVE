@@ -1,0 +1,65 @@
+#define F_CPU 8000000
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+void USART0_INIT(void){
+	/*baud rate*/
+	UBRR0H = 0x00;
+	UBRR0L = 0x33;
+	UCSR0C = 0x06;
+	/*enabling receiver and transmitter*/
+	UCSR0B = 0x18;
+	/*setting frame format*/
+}
+
+void USART0_TRANS(char data){
+	while(!(UCSR0A & 0x20));
+	UDR0 = data;
+}
+void I2C_INIT(){
+	
+	TWAR = 0xA0;
+	TWCR |= (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
+	
+}
+
+void I2C_ACK(void){
+	TWCR = (1<<TWEA)|(1<<TWEN)|(1<<TWINT)|(1<<TWIE);           //sending ACK
+	while(!(TWCR&(1<<TWINT)));
+	
+}
+
+char I2C_REC(){
+	TWCR |= (1<<TWEA)|(1<<TWINT)|(1<<TWEN);
+	while(!(TWCR&(1<<TWINT)));
+	return TWDR;
+}
+
+int main(void){
+	sei();         //enabling global interrupts
+	USART0_INIT();
+	DDRF = 0xFF;
+	I2C_INIT();
+	I2C_ACK();
+	I2C_REC();
+		
+	return 0;
+}
+ISR(TWI_vect){
+	if((TWSR & 0xF8)== 0x80){
+		USART0_TRANS(I2C_REC());
+		
+	}
+	else if((TWSR & 0xF8)== 0xA0){
+		PORTF = 0x0F;
+		_delay_ms(1000);
+		}
+	else if((TWSR & 0xF8)== 0x60){
+		PORTF = 0xF0;
+		}
+	
+	else {
+		PORTF = 0xFF;
+		_delay_ms(1000);
+		}
+}
