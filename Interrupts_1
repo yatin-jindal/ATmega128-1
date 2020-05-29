@@ -1,0 +1,50 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+void USART0_INIT(void){
+	/*baud rate*/
+	UBRR0H = 0x00;
+	UBRR0L = 0x33;
+	UCSR0C = 0x06;
+	/*enabling receiver and transmitter*/
+	UCSR0B = 0x18;
+	/*setting frame format*/
+}
+
+void USART0_TRANS(char data){
+	while(!(UCSR0A & 0x20));
+	UDR0 = data;
+}
+
+char USART0_REC(void){
+	while(!(UCSR0A & 0x80));
+	return UDR0;
+}
+
+void SPI_SLAVE_INIT(void){
+	DDRB = 0x08;
+	SPCR = 0xC0;
+}
+char SLAVE_REC(void){
+	while(!(SPSR & 0x80));
+	return SPDR;
+}
+int main(void){
+	sei();
+	SPI_SLAVE_INIT();
+	USART0_INIT();
+	DDRF = 0xFF;
+	while(1);	
+}
+ISR(SPI_STC_vect)
+{	
+	
+	UCSR0B |= (1<<UDRIE0);
+	PORTF = 0x0F;
+}
+ISR(USART0_UDRE_vect){
+	uint8_t a = SPDR;
+	UDR0 = a;
+	PORTF = 0x00;
+}
+
+
