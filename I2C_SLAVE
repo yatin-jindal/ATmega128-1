@@ -12,22 +12,25 @@ void USART0_INIT(void){
 	/*setting frame format*/
 }
 
-void USART0_TRANS(char data){
+void USART0_TRANS(uint8_t data){
 	while(!(UCSR0A & 0x20));
 	UDR0 = data;
 }
 void I2C_INIT(){
-	
+	//TWSR |= (1<<TWPS1)|(1<<TWPS0);
+	//TWBR = BITRATE(TWSR);
 	TWAR = 0xA0;
 	TWCR |= (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	
 }
 
+
+
 void I2C_ACK(void){
-	TWCR = (1<<TWEA)|(1<<TWEN)|(1<<TWINT)|(1<<TWIE);           //sending ACK
+	//while((TWSR & 0xF8)!= 0x60);
+	TWCR |= (1<<TWEA)|(1<<TWEN)|(1<<TWINT)|(1<<TWIE);
 	while(!(TWCR&(1<<TWINT)));
-	
-}
+	}
 
 char I2C_REC(){
 	TWCR |= (1<<TWEA)|(1<<TWINT)|(1<<TWEN);
@@ -36,30 +39,39 @@ char I2C_REC(){
 }
 
 int main(void){
-	sei();         //enabling global interrupts
+	sei();
 	USART0_INIT();
 	DDRF = 0xFF;
+	PORTF = 0x01;
 	I2C_INIT();
-	I2C_ACK();
-	I2C_REC();
+	PORTF = 0x02;
+	while(1);
 		
 	return 0;
 }
 ISR(TWI_vect){
 	if((TWSR & 0xF8)== 0x80){
-		USART0_TRANS(I2C_REC());
+		USART0_TRANS(TWDR);
+		TWCR |= (1<<TWINT)|(1<<TWEA);
 		
 	}
 	else if((TWSR & 0xF8)== 0xA0){
 		PORTF = 0x0F;
-		_delay_ms(1000);
+		//TWCR |= (1<<TWEA)|(1<<TWINT);
+		TWCR &= ~(1<<TWEN);
+		//_delay_ms(1000);
 		}
 	else if((TWSR & 0xF8)== 0x60){
 		PORTF = 0xF0;
-		}
+		TWCR |= (1<<TWEA)|(1<<TWINT);
+		//_delay_ms(1000);
+		
+	}
 	
 	else {
+		TWCR |=(1<<TWINT);
 		PORTF = 0xFF;
-		_delay_ms(1000);
-		}
+		//_delay_ms(1000);
+			
+	}
 }
