@@ -1,0 +1,140 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+void ADC_Init(void){
+	/*enabling adc and setting prescaler to 16*/
+	ADCSRA |= (1<<ADEN)|(1<<ADPS2)|(1<<ADFR);
+	/* selecting ADC0 and ADC1 for positive and negative differential channels , left adjusting result*/
+	ADMUX |= (1<<MUX0)|(1<<ADLAR)|(1<<REFS0)|(1<<REFS1);
+}
+
+void I2C_Init(void){
+	TWBR=0x20;
+	TWSR=0x00;
+}
+
+void I2C_Start(void){
+	TWCR=0b10100100;
+	while(!(TWCR & (1<<TWINT)));    
+	while((TWSR & 0xF8)!= 0x08);   
+	}
+
+void I2C_Repeated_Start(void){
+	TWCR=0b10100100;
+	while(!(TWCR & (1<<TWINT)));
+	while((TWSR & 0xF8)!= 0x10);
+}
+
+void EEPROM_ADD(void)
+
+{
+
+	TWDR=0b10100000;             
+	TWCR=(1<<TWINT)|(1<<TWEN);   
+	while (!(TWCR & (1<<TWINT)));
+	while( (TWSR & 0xF8) != 0x18);
+}
+
+
+
+void Address1(uint8_t addrs){
+	TWDR=addrs;
+	TWCR=(1<<TWINT)|(1<<TWEN);
+	while (!(TWCR & (1<<TWINT)));
+	while( (TWSR & 0xF8) != 0x28);
+}
+
+
+
+void Address(uint32_t add){
+	TWDR=add;                
+	TWCR=(1<<TWINT)|(1<<TWEN);      
+	while (!(TWCR & (1<<TWINT)));   
+	if((TWSR & 0xF8) == 0x18){  
+		TWDR=(add<<8);
+		TWCR=(1<<TWINT)|(1<<TWEN);
+		while (!(TWCR & (1<<TWINT)));
+	
+		TWDR=(add<<16);
+		TWCR=(1<<TWINT)|(1<<TWEN);
+		while (!(TWCR & (1<<TWINT)));
+	
+		TWDR=(add<<24);
+		TWCR=(1<<TWINT)|(1<<TWEN);
+		while (!(TWCR & (1<<TWINT)));
+		}
+	}
+
+
+void EEPROM_write(unsigned char data){
+	TWDR=data;
+	TWCR=(1<<TWINT)|(1<<TWEN);
+	while (!(TWCR & (1<<TWINT)));
+	while( (TWSR & 0xF8) != 0x28);
+	}
+
+
+
+
+int main()
+
+{	
+	DDRA = 0xFF;
+	DDRD |=(1<<PD4)|(1<<PD5)|(1<<PD6)|(1<<PD7);
+	sei();
+	EIMSK |= (1<<INT2)|(1<<INT3);
+	EICRA |= (1<<ISC20)|(1<<ISC21)|(1<<ISC30)|(1<<ISC31);
+	
+	uint8_t d = 0x00;
+	uint8_t timerOverflowCount=0;
+	ADC_Init();
+	I2C_Init();	
+	PORTA = 0x00;
+	
+	
+	
+	    											
+	TCNT0=0x00;
+	TCCR0 = (1<<CS00)|(1<<CS02)|(1<<CS01);
+	uint8_t add1 = 0x00;
+	uint8_t add2 = 0x00;
+	while(1)
+
+	{	
+		 
+		 while (!(TIFR & 0x01) ); 
+		 TCNT0 = 0x00;
+		 TIFR=0x01; 		              
+		 timerOverflowCount++;	
+		 PORTD = 0x10;	 
+		 if (timerOverflowCount>=200)
+		 {	
+			
+			PORTD = 0x20;
+			ADCSRA |= (1<<ADSC);
+			while(!(ADCSRA & (1<<ADIF)));
+			d = PORTA;
+			//uint16_t a = (ADCH<<8)|d ;
+			I2C_Start();
+			EEPROM_ADD();
+			Address1(add1);
+			Address1(add2);
+			EEPROM_write(ADCH);
+			add2 += 0x01;
+			EEPROM_write(d);
+			TWCR=0b10010100;
+			timerOverflowCount=0;
+			add2 += 0x01;
+			
+		 } 		 
+	}
+}
+ISR(INT2_vect){
+	PORTA|= (1<<PA1)|(1<<PA0);
+	PORTD = 0x40;
+}
+ISR(INT3_vect){
+	PORTA|= (1<<PA4)|(1<<PA5);
+	PORTD = 0x80;	
+}
+	
+
