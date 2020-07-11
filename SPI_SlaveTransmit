@@ -1,0 +1,77 @@
+#define F_CPU 8000000
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+void SPI_MasterInit(void){
+	DDRB = 0b00000111;
+	SPCR = 0b01010000;
+	SPCR |= (1<<SPIE);
+	PORTB &= ~(1<<PB0);
+  }
+
+void SPI_MasterTransmit(uint8_t data){
+  uint8_t flush;
+	SPDR = data;
+	while(!(SPSR & (1<<SPIF)));
+	flush = SPDR;
+	}
+
+uint8_t SPI_MasterReceive(void){
+	while(!(SPSR & (1<<SPIF)));
+	return  SPDR;
+  }
+
+
+int main(void){	
+	sei();
+	DDRE=0xFF;
+	PORTE = 0x00;
+	SPI_MasterInit();
+	//SPI_MasterTransmit(2);
+	_delay_ms(100);
+	//SPI_MasterTransmit(3);
+	return 0;
+  }
+
+ISR(SPI_STC_vect){
+	PORTE = SPDR;
+}
+
+
+
+-----------x------------------x------------------x---------------------x-----------------x
+
+#define F_CPU 8000000
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+void SPI_SlaveInit(void){
+  DDRB |= (1<<DDB3);
+  SPCR |= (1<<SPE);
+  }
+
+void SPI_SlaveTransmit(uint8_t data){
+  SPDR = data;
+  while(!(SPSR & (1<<SPIF)));
+  }
+
+uint8_t SPI_SlaveReceive(void){
+	while(!(SPSR & (1<<SPIF)));
+	return SPDR;
+  }
+
+int main(void){
+
+	DDRE = 0xFF;
+	SPI_SlaveInit();
+	
+	
+	_delay_ms(10000);
+	PORTE = 0x10;
+	SPI_SlaveTransmit(0xF0);
+	
+	return 0;
+  }
+
