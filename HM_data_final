@@ -241,7 +241,7 @@ int main(void){
 	
 	while (1)
 	{
-		if (count==5)
+		if (count==30)
 		{	
 			count=0;
 			I2C_Start();
