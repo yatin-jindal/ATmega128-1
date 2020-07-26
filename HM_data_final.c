@@ -172,24 +172,26 @@ uint8_t spiTrans(uint8_t data){
 
 
 int main(void){
-	
-	DDRA=0xFF;
-	DDRC=0xFF;
+	//setting the pin status variables to their starting value
 	deploymentStatus=0x00;
 	currentStatus=0x00;
 	voltageStatus=0x00;
+	//setting up the timer with the required settings and initializing the various communication protocols used
 	setupTimer();
 	adcInit();
 	uartInit();
 	spiInit();
 	i2cInit();
+	//enabling the external interrupts and enabling global interrupts
 	initInterrupt();
 	sei();
 	
 	while (1)
 	{
+		//this is the code that gets executed every minute, and writes the HM data in the EEPROM
 		if (count==30)
-		{	
+		{
+			//resetting the count variable and starting the i2c connection and sending the data to the EEPROM
 			count=0;
 			i2cStart();
 			eepromWr();
@@ -202,6 +204,7 @@ int main(void){
 			eepromWrite(operationalMode);
 			eepromWrite(deploymentStatus);
 			eepromWrite(voltageStatus);
+		        //measuring the ADC values and sending them to the EEPROM
 			adcConvert(0x00);
 			adcConvert(0x01);
 			eepromWrite(currentStatus);
@@ -222,8 +225,10 @@ int main(void){
 
 ISR(USART0_RX_vect)
 {
+	/*this is the interrupt for the USART communicstion, for getting the HM data from comm microcontroller*/
 	if (repeat==0)
 	{
+		//reading the data from the USART data register
 		commData1=UDR0;
 		repeat++;
 	}
@@ -236,44 +241,44 @@ ISR(USART0_RX_vect)
 
 ISR(SPI_STC_vect)
 {	
-	PORTC = 0x01;
+	/*this is the interrrupt for SPI communication from the PS4 OP microcontroller, switch statement is used to store the data in different variables*/
 	switch(times)
 	{
+		//cases 0-4 is getting operational mode and timestamp from PS4 OP microcontroller
 		case 0 :
 		operationalMode=SPDR;
 		times++;
-		//PORTC|=0xC0;
 		break;
+			
 		case 1 :
 		timestamp1=SPDR;
 		times++;
-		//PORTC|=0x30;
 		break;
+			
 		case 2 :
 		timestamp2=SPDR;
 		times++;
-		//PORTC|=0x0C;
 		break;
+			
 		case 3 :
 		timestamp3=SPDR;
 		times++;
-		//PORTC|=0x03;
 		break;
+			
 		case 4 :
 		timestamp4=SPDR;
 		times++;
-		//PORTA|=0xF0;
 		break;
+		//this case is for reading the HM data from the EEPROM and sending it to PS4 for telemetry	
 		case 5 :
 		i2cStart();
 		eepromWr();
 		address(0x00);
 		address(addr);
-		PORTC = 0x00;
 		temp = SPDR;
 		SPDR = eepromRandomRead();
 		i2cStop();
-		PORTC = 0xF0;
+		//ensuring the data gets read to a certain address 
 		if(addr == 0x09) times = 0;
 		else times = 5;
 		addr++;
@@ -281,7 +286,7 @@ ISR(SPI_STC_vect)
 		
 	}
 }
-
+/*These are the external interrupts for various pin statuses that we are including in the HM data, that we are storing in variables*/
 ISR(TIMER1_COMPA_vect)
 {
 	count++;
