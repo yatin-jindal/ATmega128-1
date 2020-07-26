@@ -3,142 +3,235 @@
 
 volatile uint8_t count, write = 0;
 volatile uint8_t add = 0, addr = 0;
-volatile uint8_t deployment_status;
-volatile uint8_t voltage_status;
-volatile uint8_t current_status;
-volatile uint8_t comm_data1,comm_data2;
-volatile uint8_t operational_mode;
+volatile uint8_t deploymentStatus;
+volatile uint8_t voltageStatus;
+volatile uint8_t currentStatus;
+volatile uint8_t commData1,commData2;
+volatile uint8_t operationalMode;
 volatile uint8_t timestamp1,timestamp2,timestamp3,timestamp4;
 int times=0;
 int repeat=0;
 uint8_t temp = 0x00;
 
-void setup_timer(void)
-{
+void setupTimer(void){
+	//enabling output compare interrupt
 	TIMSK = (1<<OCIE1A);
+	//putting the value to compare counter with
 	OCR1A = 0x3D08;
+	//selecting clock, enabling CTC mode (Clear Timer on Compare) 
 	TCCR1B = (1<<CS12)|(1<<CS10)|(1<<WGM12);
 	count=0;
 }
 
-void Init_interrupt(void)
-{
+void initInterrupt(void){
+	//setting to generate interrupt request at rising edge
 	EICRA = (1<<ISC20)|(1<<ISC21)|(1<<ISC30)|(1<<ISC31);
+	//setting to generate interrupt request when logic changes
 	EICRB = (1<<ISC40)|(1<<ISC50)|(1<<ISC60)|(1<<ISC70);
+	//enabling external interrupts
 	EIMSK = (1<<INT2)|(1<<INT3)|(1<<INT4)|(1<<INT5)|(1<<INT6)|(1<<INT7);
 }
 
-void ADC_Init(void)
-{
+void adcInit(void){
+	//enabling ADC, setting frequency prescaler to 16
 	ADCSRA |= (1<<ADEN)|(1<<ADPS2);
 }
 
-void I2C_Init(void)
-{
+void i2cInit(void){
+	//setting division factor for SCL to 32
 	TWBR=0x20;
+	//setting prescaler to 1
 	TWSR=0x00;
 	add=0x00;
 }
 
-void I2C_Start(void)
-{
+void i2cStart(void){
+	//clearing interrupt flag, generate start condition, enable twi operation
 	TWCR=0b10100100;
+	//waiting for interrupt flag to set
 	while(!(TWCR & (1<<TWINT)));
+	//checking status register
 	while((TWSR & 0xF8)!= 0x08);
 }
 
-void EEPROM_WR(void)
-{
+void eepromWr(void){
+	//loading SLA+W 
 	TWDR=0b10100000;
+	//clear TWINT
 	TWCR=(1<<TWINT)|(1<<TWEN);
+	//wait for flag to set
 	while (!(TWCR & (1<<TWINT)));
+	//check status register
 	while( (TWSR & 0xF8) != 0x18);
 }
 
-void Address(uint8_t addrs)
-{
+void address(uint8_t addrs){
+	/*sends to eeprom the address to write at
+	*Parameters
+	*addrs     address at which to write
+	*/
 	TWDR=addrs;
+	//clear TWINT
 	TWCR=(1<<TWINT)|(1<<TWEN);
+	//wait for flag to set
 	while (!(TWCR & (1<<TWINT)));
+	//check status register
 	while( (TWSR & 0xF8) != 0x28);
 }
 
-void EEPROM_Write(unsigned char data)
-{
+void eepromWrite(unsigned char data){
+	//load data into TWDR
 	TWDR=data;
+	//clear TWINT
 	TWCR=(1<<TWINT)|(1<<TWEN);
+	//wait for flag to set
 	while (!(TWCR & (1<<TWINT)));
+	//check status register
 	while( (TWSR & 0xF8) != 0x28);
+	//increment add for next write operation
 	add+=0x01;
 }
 
-unsigned char EEPROM_Random_Read(void)
-{
-	TWCR=0b10100100;               
+unsigned char eepromRandomRead(void){
+	/*returns the data stored in EEPROM at the prev sent address
+	*/
+	//sending repeated start condition
+	TWCR=0b10100100;      
+	//waiting for flag to set
 	while(!(TWCR & (1<<TWINT)));
+	//checking status register
 	while((TWSR & 0xF8)!= 0x10);
 	
-	TWDR=0b10100001;               
+	//loading SLA+R
+	TWDR=0b10100001; 
+	//clear TWINT
 	TWCR=(1<<TWINT)|(1<<TWEN);
+	//waiting for flag to set
 	while (!(TWCR & (1<<TWINT)));
+	//check status register
 	while( (TWSR & 0xF8) != 0x40);
 	
-	TWCR = (1<<TWINT)|(1<<TWEN);     
+	// TWEA not set as we have to send nack
+	TWCR = (1<<TWINT)|(1<<TWEN);  
+	//waiting for flag to set
 	while (!(TWCR & (1<<TWINT)));
+	//check status register
 	while(((TWSR & 0xF8)!=0x58));
 	
 	return(TWDR);
 }
 
 
-void I2C_Stop(void)
-{
+void i2cStop(void){
+	//sending stop conditon
 	TWCR=0b10010100;
 }
 
-void ADC_convert(uint8_t mux)
-{
+void adcConvert(uint8_t mux){
+	/*Writes the adc value into EEPROM
+	*parameters
+	*mux     analog channel
+	*/
+	//setting external voltage reference, left adjust result
 	ADMUX = 0x20;
 	ADMUX |= mux;
+	//start conversion
 	ADCSRA |= (1<<ADSC);
+	//wait for conversion to finish
 	while(!(ADCSRA & (1<<ADIF)));
-	EEPROM_Write(ADCH);
+	//write result into eeprom
+	eepromWrite(ADCH);
 }
 
-void UART_init (void)
-{
+void uartInit (void){
+	//setting baud rate to 9600
 	UBRR0H=0x00;
 	UBRR0L=0x33;
+	//setting no. of data bits to 8
 	UCSR0C=0x06;
+	//enable receive complete interrupt, receiver enable, transmitter enable
 	UCSR0B=0x98;
+}
+
+
+void spiInit(void){
+	//set MISO as output
+	DDRB = (1<<3);
+	//enable SPI and SPI interrupt
+	SPCR |=(1<<SPIE)|(1<<SPE);
+}
+
+uint8_t spiTrans(uint8_t data){
+	//load data into SPDR
+	SPDR = data;
+	// Wait for reception complete 
+	while(!(SPSR & (1<<SPIF)));
+	//Return data register
+	return  SPDR;
+}
+
+
+int main(void){
+	
+	DDRA=0xFF;
+	DDRC=0xFF;
+	deploymentStatus=0x00;
+	currentStatus=0x00;
+	voltageStatus=0x00;
+	setupTimer();
+	adcInit();
+	uartInit();
+	spiInit();
+	i2cInit();
+	initInterrupt();
+	sei();
+	
+	while (1)
+	{
+		if (count==30)
+		{	
+			count=0;
+			i2cStart();
+			eepromWr();
+			address(0x00);
+			address(add);
+			eepromWrite(timestamp1);
+			eepromWrite(timestamp2);
+			eepromWrite(timestamp3);
+			eepromWrite(timestamp4);
+			eepromWrite(operationalMode);
+			eepromWrite(deploymentStatus);
+			eepromWrite(voltageStatus);
+			adcConvert(0x00);
+			adcConvert(0x01);
+			eepromWrite(currentStatus);
+			adcConvert(0x02);
+			adcConvert(0x03);
+			adcConvert(0x04);
+			adcConvert(0x05);
+			adcCconvert(0x06);
+			adcConvert(0x07);
+			eepromWrite(comm_data1);
+			eepromWrite(comm_data2);
+			i2cStop();
+					
+		}
+		
+	}
 }
 
 ISR(USART0_RX_vect)
 {
 	if (repeat==0)
 	{
-		comm_data1=UDR0;
+		commData1=UDR0;
 		repeat++;
 	}
 	else
 	{
-		comm_data2=UDR0;
+		commData2=UDR0;
 		repeat=0;
 	}
-}
-
-void SPI_init(void)
-{
-	DDRB |= (1<<3);
-	SPCR |=(1<<SPIE)|(1<<SPE);
-}
-
-uint8_t SPI_trans(uint8_t data){
-	SPDR = data;
-	/* Wait for reception complete */
-	while(!(SPSR & (1<<SPIF)));
-	/* Return data register */
-	return  SPDR;
 }
 
 ISR(SPI_STC_vect)
@@ -147,7 +240,7 @@ ISR(SPI_STC_vect)
 	switch(times)
 	{
 		case 0 :
-		operational_mode=SPDR;
+		operationalMode=SPDR;
 		times++;
 		//PORTC|=0xC0;
 		break;
@@ -172,14 +265,14 @@ ISR(SPI_STC_vect)
 		//PORTA|=0xF0;
 		break;
 		case 5 :
-		I2C_Start();
-		EEPROM_WR();
-		Address(0x00);
-		Address(addr);
+		i2cStart();
+		eepromWr();
+		address(0x00);
+		address(addr);
 		PORTC = 0x00;
 		temp = SPDR;
-		SPDR = EEPROM_Random_Read();
-		I2C_Stop();
+		SPDR = eepromRandomRead();
+		i2cStop();
 		PORTC = 0xF0;
 		if(addr == 0x09) times = 0;
 		else times = 5;
@@ -196,79 +289,31 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(INT2_vect)
 {
-	deployment_status |= 0x30;
+	deploymentStatus |= 0x30;
 }
 
 ISR(INT3_vect)
 {
-	deployment_status |= 0x03;
+	deploymentStatus |= 0x03;
 }
 
 ISR(INT4_vect)
 {
-	voltage_status |= 0x30;
+	voltageStatus |= 0x30;
 }
 
 ISR(INT5_vect)
 {
-	voltage_status |= 0x03;
+	voltageStatus |= 0x03;
 }
 
 ISR(INT6_vect)
 {
-	current_status |= 0x30;
+	currentStatus |= 0x30;
 }
 
 ISR(INT7_vect)
 {
-	current_status |= 0x03;
+	currentStatus |= 0x03;
 }
 
-int main(void){
-	
-	DDRA=0xFF;
-	DDRC=0xFF;
-	deployment_status=0x00;
-	current_status=0x00;
-	voltage_status=0x00;
-	setup_timer();
-	ADC_Init();
-	UART_init();
-	SPI_init();
-	I2C_Init();
-	Init_interrupt();
-	sei();
-	
-	while (1)
-	{
-		if (count==30)
-		{	
-			count=0;
-			I2C_Start();
-			EEPROM_WR();
-			Address(0x00);
-			Address(add);
-			EEPROM_Write(timestamp1);
-			EEPROM_Write(timestamp2);
-			EEPROM_Write(timestamp3);
-			EEPROM_Write(timestamp4);
-			EEPROM_Write(operational_mode);
-			EEPROM_Write(deployment_status);
-			EEPROM_Write(voltage_status);
-			ADC_convert(0x00);
-			ADC_convert(0x01);
-			EEPROM_Write(current_status);
-			ADC_convert(0x02);
-			ADC_convert(0x03);
-			ADC_convert(0x04);
-			ADC_convert(0x05);
-			ADC_convert(0x06);
-			ADC_convert(0x07);
-			EEPROM_Write(comm_data1);
-			EEPROM_Write(comm_data2);
-			I2C_Stop();
-					
-		}
-		
-	}
-}
