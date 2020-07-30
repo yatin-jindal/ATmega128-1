@@ -1,7 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-volatile uint8_t count, write = 0;
+volatile uint8_t count;
 volatile uint8_t add = 0, addr = 0;
 volatile uint8_t deploymentStatus;
 volatile uint8_t voltageStatus;
