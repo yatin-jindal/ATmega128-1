@@ -127,7 +127,7 @@ void i2cStop(void){
 	TWCR=0b10010100;
 }
 
-void adcConvert(uint8_t mux){
+void adcConvert(uint8_t mux, uint8_t ideal_value){
 	/*Writes the adc value into EEPROM
 	*parameters
 	*mux     analog channel
@@ -139,8 +139,13 @@ void adcConvert(uint8_t mux){
 	ADCSRA |= (1<<ADSC);
 	//wait for conversion to finish
 	while(!(ADCSRA & (1<<ADIF)));
-	//write result into eeprom
-	eepromWrite(ADCH);
+	
+	HM_Data=ADCH;
+	
+	if(abs(ADCH - ideal_value) > 0.5)
+	{
+		opMode=Emergency;
+	}
 }
 
 void uartInit (void){
